@@ -1,5 +1,7 @@
 # Kate's Day
 
+_You make your day._
+
 A cozy 3D to-do game. Your character lives in a little house, walks to the room where each real-life quest happens, and earns XP to level up and buy upgrades.
 
 ## Play it
