@@ -8,6 +8,10 @@ A cozy 3D to-do game. Your character lives in a little house, walks to the room 
 
 Open `index.html` in a browser, or turn on GitHub Pages for this repository (Settings → Pages → Deploy from branch → `main` / root) and open the link it gives you.
 
+## Focus time
+
+While the page is open and visible, you earn 1 XP every minute, plus 5 bonus XP for every 25 minutes of focus in a day. The timer pauses when you switch to another tab or app.
+
 ## Notes
 
 - Everything is in one file, `index.html`. It loads three.js r128 from cdnjs and fonts from Google Fonts.

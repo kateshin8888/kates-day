@@ -189,6 +189,7 @@ html,body{height:100%;overflow:hidden}
 .hud .brand{font-size:21px;text-shadow:0 2px 0 #ffffffcc}
 .hud .chips{gap:6px}
 .hud .chip{padding:5px 10px}
+.chip.focus.paused{opacity:.55}
 .chip.zoom{border:0;cursor:pointer;font:inherit;font-weight:800;font-size:13px;color:var(--ink)}
 .herocard{padding:10px 14px 10px;border-radius:20px}
 .herocard .hname{font-size:18px}
@@ -238,6 +239,7 @@ html,body{height:100%;overflow:hidden}
     <div class="chips">
       <span class="chip" title="Day streak"><svg viewBox="0 0 24 24"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3-1-3 0-7 1-10z" fill="var(--butter)" stroke="var(--pink-deep)" stroke-width="1.6" stroke-linejoin="round"/></svg><span id="streak">0</span></span>
       <span class="chip" title="XP you can spend in the shop"><svg viewBox="0 0 24 24"><path d="M12 2l7 6-7 14-7-14z" fill="var(--sky)" stroke="var(--pink-deep)" stroke-width="1.6" stroke-linejoin="round"/></svg><span id="wallet">0</span> XP</span>
+      <span class="chip focus" id="focusChip" title="Time focused today. You earn 1 XP for every minute this page is open, plus 5 bonus XP every 25 minutes."><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" fill="var(--mint)" stroke="var(--pink-deep)" stroke-width="1.6"/><path d="M12 9v4l3 2M10 3h4" stroke="var(--pink-deep)" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg><span id="focusTime">0m</span></span>
     </div>
   </div>
   <div class="clay herocard">
@@ -933,7 +935,7 @@ function render(){
     ${firstRun?"":`<div class="stats">
       <div class="clay stat"><b>${S.total}</b><small>quests done</small></div>
       <div class="clay stat"><b>${S.best}</b><small>best streak</small></div>
-      <div class="clay stat"><b>${S.owned.length}</b><small>items owned</small></div></div>`}`;
+      <div class="clay stat"><b>${fmtFocus(S.focus&&S.focus.day===dayKey()?S.focus.sec:0)}</b><small>focus today</small></div></div>`}`;
   } else {
     v.innerHTML=`<div class="clay wallet"><svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l7 6-7 14-7-14z" fill="var(--sky)" stroke="var(--pink-deep)" stroke-width="1.4" stroke-linejoin="round"/></svg>
       <div><b>${S.wallet} XP</b><p>to spend. Finishing quests earns more, and spending never lowers your level.</p></div></div>
@@ -1052,6 +1054,28 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("sheetBg").hidden
 $("say").textContent=IDLE[Math.floor(Math.random()*IDLE.length)];
 afterLoad();
 setInterval(()=>{rollover();renderHead()},60000);
+
+/* ---------- focus time: 1 XP per minute while the page is open and visible ---------- */
+function gainXP(n){
+  S.xp+=n;S.wallet+=n;let leveled=false;
+  while(S.xp>=needFor(S.lvl)){S.xp-=needFor(S.lvl);S.lvl++;leveled=true}
+  renderHead();if(leveled)setTimeout(levelUp,300);
+}
+function fmtFocus(sec){const m=Math.floor(sec/60),h=Math.floor(m/60);return h?`${h}h ${m%60}m`:`${m}m`}
+function focusTick(){
+  const t=dayKey();if(!S.focus||S.focus.day!==t)S.focus={day:t,sec:0};
+  const on=document.visibilityState==="visible"&&S.made;
+  $("focusChip").classList.toggle("paused",!on);
+  if(on){S.focus.sec++;
+    if(S.focus.sec%60===0){gainXP(1);S.focusTotal=(S.focusTotal||0)+1;
+      const c=$("focusChip").getBoundingClientRect(),f=document.createElement("div");f.className="floatxp";f.textContent="+1 XP";
+      f.style.left=c.left+"px";f.style.top=(c.bottom+4)+"px";document.body.appendChild(f);setTimeout(()=>f.remove(),1000);
+      if(S.focus.sec%1500===0){gainXP(5);$("say").textContent=`${S.focus.sec/60} minutes of focus today! +5 bonus XP.`;Hero.cheer()}
+      save()}}
+  $("focusTime").textContent=fmtFocus(S.focus?S.focus.sec:0);
+}
+setInterval(focusTick,1000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&S.made)$("say").textContent="Welcome back! Focus time is counting again."});
 connect();
 })();
 </script>
