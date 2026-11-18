@@ -235,6 +235,28 @@ html,body{height:100%;overflow:hidden}
 .spots{display:flex;gap:6px;flex-wrap:wrap}
 .spots button{border:0;background:var(--bg2);border-radius:999px;padding:6px 11px;font-weight:800;font-size:12.5px;box-shadow:0 2px 0 var(--line)}
 .spots button[aria-pressed="true"]{background:var(--pink-deep);color:var(--on-accent);box-shadow:0 2px 0 var(--pink-dark)}
+/* study groups */
+.chip.gchip{border:0;cursor:pointer;font:inherit;font-weight:800;font-size:13px;color:var(--ink)}
+.maplabels .ptag{position:absolute;left:0;top:0;font-family:var(--display);font-weight:600;font-size:12px;color:#4a3a4f;background:#ffffffe6;padding:2px 9px;border-radius:999px;box-shadow:0 2px 0 rgba(201,76,120,.25);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.gp-sec{display:flex;flex-direction:column;gap:8px}
+.gp-sec>h4{margin:0;font-family:var(--display);font-size:15px;font-weight:600;color:var(--muted)}
+.inrow{display:flex;gap:8px}
+.inrow .txt{flex:1;min-width:0;padding:10px 12px}
+.inrow .btn3d{flex:none;padding:10px 16px;font-size:16px}
+.gp-code{font-family:var(--display);font-size:30px;font-weight:700;letter-spacing:.2em;color:var(--pink-deep);line-height:1}
+.gp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.gp-ghost{border:0;border-radius:12px;background:var(--bg2);padding:8px 12px;font-weight:800;font-size:13px;box-shadow:0 3px 0 var(--line)}
+.gp-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:18px}
+.gp-dot{width:32px;height:32px;border-radius:50%;flex:none;border:4px solid var(--card);box-shadow:0 0 0 2px var(--line),inset 0 -3px 0 rgba(0,0,0,.12)}
+.gp-main{flex:1;min-width:0}
+.gp-main b{font-weight:800}
+.gp-main small{display:block;color:var(--muted);font-weight:700;font-size:12.5px;overflow-wrap:anywhere}
+.gp-f{font-family:var(--display);font-weight:600;font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.gp-you{font-size:11px;font-weight:800;border-radius:999px;padding:1px 7px;background:var(--bg2);color:var(--muted);margin-left:4px}
+.gp-note{margin:0;color:var(--muted);font-weight:700;font-size:12.5px}
+.gp-total{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:18px;background:color-mix(in srgb,var(--mint) 25%,var(--card))}
+.gp-total b{font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
+.gp-err{color:var(--pink-dark);font-weight:800;font-size:13px;margin:0}
 </style>
 
 <div class="stage" id="stage"></div>
@@ -245,6 +267,7 @@ html,body{height:100%;overflow:hidden}
     <div class="chips">
       <span class="chip" title="Day streak"><svg viewBox="0 0 24 24"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3-1-3 0-7 1-10z" fill="var(--butter)" stroke="var(--pink-deep)" stroke-width="1.6" stroke-linejoin="round"/></svg><span id="streak">0</span></span>
       <span class="chip" title="XP you can spend in the shop"><svg viewBox="0 0 24 24"><path d="M12 2l7 6-7 14-7-14z" fill="var(--sky)" stroke="var(--pink-deep)" stroke-width="1.6" stroke-linejoin="round"/></svg><span id="wallet">0</span> XP</span>
+      <button class="chip gchip" id="gChip" hidden title="Your study group"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3.6" fill="var(--pink)"/><circle cx="16.5" cy="10" r="3" fill="var(--lav)"/><path d="M2.5 19.5c.6-3.4 3.3-5.3 6.5-5.3s5.9 1.9 6.5 5.3z" fill="var(--pink)"/><path d="M13.6 14.9c.9-.5 1.9-.8 2.9-.8 2.6 0 4.6 1.6 5.1 4.4h-6.2" fill="var(--lav)"/></svg><span id="gCount">1</span></button>
     </div>
   </div>
   <div class="clay herocard">
@@ -273,6 +296,7 @@ html,body{height:100%;overflow:hidden}
       <button role="tab" aria-selected="false" data-tab="done" id="tab-done">Done</button>
       <button role="tab" aria-selected="false" data-tab="me" id="tab-me">My hero</button>
       <button role="tab" aria-selected="false" data-tab="shop" id="tab-shop">Shop</button>
+      <button role="tab" aria-selected="false" data-tab="group" id="tab-group">Group</button>
     </div>
     <div id="view"></div>
     <div class="save-note" id="saveNote"></div>
@@ -416,7 +440,8 @@ function rollover(){
 const Hero=(function(){
   const ok=!!window.THREE && (()=>{try{const c=document.createElement("canvas");return !!(c.getContext("webgl")||c.getContext("experimental-webgl"))}catch(e){return false}})();
   if(!ok){ const n=document.createElement("div");n.className="nofx";n.textContent="Your browser can't show 3D here, but your quests still work.";$("stage").appendChild(n);
-    return {rebuild(){},cheer(){},thumb(){return ""},spin(){},setZoom(){},goTo(){return false},setMarkers(){},onSpotTap(){},onAct(){}}; }
+    return {rebuild(){},cheer(){},thumb(){return ""},spin(){},setZoom(){},goTo(){return false},setMarkers(){},onSpotTap(){},onAct(){},
+      state(){return null},setOthers(){},roomAt(){return ""},onOther(){},onWave(){}}; }
   const T=THREE;
   const grad=new T.DataTexture(new Uint8Array([120,175,215,235]),4,1,T.LuminanceFormat);
   grad.minFilter=grad.magFilter=T.NearestFilter; grad.needsUpdate=true;
@@ -726,6 +751,10 @@ const Hero=(function(){
       else{const s=Math.min(w.speed*dt,d);p.x+=dx/d*s;p.z+=dz/d*s;moving=true;turn(w,Math.atan2(dx,dz),dt*9)}}
     else{w.wait-=dt;if(!w.pose)turn(w,0,dt*2);
       if(w.wait<=0){standUp(w);const near=[p.x-4,p.x+4,p.z-4,p.z+4].map((v,i)=>Math.max(i<2?-W+.4:-D+.4,Math.min(i<2?W-.4:D-.4,v)));w.path=findPath(p,freeSpot(near))||[];w.wait=1.5}}
+    swing(w,dt,moving);
+  }
+  function swing(w,dt,moving){
+    const P=w.built.parts;
     const k=w.walkAmt=(w.walkAmt||0)+((moving?1:0)-(w.walkAmt||0))*Math.min(1,dt*10);
     w.phase+=dt*w.speed*11;const sw=Math.sin(w.phase)*k;
     if(P.legL){P.legL.rotation.x=sw*.7;P.legR.rotation.x=-sw*.7}
@@ -761,7 +790,7 @@ const Hero=(function(){
     let st=a.stand?new T.Vector3(a.stand[0],0,a.stand[1]):null;
     if(!st){const c=nearestFree(ci(a.x),cj(a.z));if(!c)return false;st=new T.Vector3(cx(c[0]),0,cz(c[1]))}
     const face=a.face!=null?a.face:Math.atan2(a.x-st.x,a.z-st.z);
-    const done=()=>{hero.actor.rotation.y=face;
+    const done=()=>{hero.actor.rotation.y=face;hero.actId=a.id;
       if(a.pose){hero.pose={type:a.pose,h:a.h,back:hero.actor.position.clone()};if(a.seat)hero.actor.position.set(a.seat[0],0,a.seat[1]);hero.wait=a.pose==="lie"?40:25}
       if(cb)cb();if(!quiet&&onAct)onAct(a)};
     if(hero.actor.position.distanceTo(st)<.15){hero.path=[];done();return true}
@@ -797,7 +826,9 @@ const Hero=(function(){
   cv.addEventListener("click",e=>{ if(!hero)return;
     const r=cv.getBoundingClientRect(),v=new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
     ray.setFromCamera(v,cam);
-    if(ray.intersectObject(hero.actor,true).length){cheerT=0;return}
+    if(ray.intersectObject(hero.actor,true).length){cheerT=0;if(onWave)onWave();return}
+    const fr=[...others.values()].find(o=>ray.intersectObject(o.w.actor,true).length);
+    if(fr&&onOther){onOther(fr.id);return}
     const mk=ray.intersectObjects(markG.children,true)[0];
     if(mk){let o=mk.object;while(o&&!o.userData.id)o=o.parent;if(o&&onSpot){onSpot(o.userData.id);return}}
     const hit=ray.intersectObjects(roomG.children,true)[0];
@@ -816,12 +847,31 @@ const Hero=(function(){
   const clock=new T.Clock(),pv=new T.Vector3();
   function loop(){ requestAnimationFrame(loop); const dt=Math.min(clock.getDelta(),.05); if(document.hidden||!hero)return;
     const t=clock.elapsedTime;
-    [hero].forEach(w=>{ stepWalker(w,dt);
-      const P=w.built.parts; P.head.rotation.z=Math.sin(t*1.1+w.speed*9)*.05; w.built.root.position.y=w.bounce||0; });
+    stepWalker(hero,dt); animBody(hero,t);
     const P=hero.built.parts;
+    if(cheerT>=0){cheerT+=dt;const p=Math.min(cheerT/.9,1),s=Math.sin(p*Math.PI);hero.built.root.position.y+=s*.9;P.armL.rotation.z=-2.4*s-.32;if(!P.wand)P.armR.rotation.z=2.4*s+.32;if(p>=1)cheerT=-1}
+    if(spinT>=0){spinT+=dt;const p=Math.min(spinT/1.2,1);hero.built.root.rotation.y=p*Math.PI*2;hero.built.root.position.y+=Math.sin(p*Math.PI)*.6;if(p>=1){spinT=-1;hero.built.root.rotation.y=0}}
+    if(buddy){const hp=hero.actor.position,hr=hero.actor.rotation.y;const tx=hp.x-Math.sin(hr)*.5+Math.cos(hr)*.4,tz=hp.z-Math.cos(hr)*.5-Math.sin(hr)*.4;
+      const dx=tx-buddy.position.x,dz=tz-buddy.position.z,d=Math.hypot(dx,dz);
+      if(d>.08){buddy.position.x+=dx*Math.min(1,dt*3);buddy.position.z+=dz*Math.min(1,dt*3);buddy.rotation.y=Math.atan2(dx,dz)}
+      buddy.children[0].position.y=Math.abs(Math.sin(t*(d>.15?9:3)))*.25}
+    const w=stage.clientWidth,h=stage.clientHeight;
+    others.forEach(o=>stepOther(o,dt,t,w,h));
+    markG.children.forEach((g,i)=>{const u=g.userData;u.st.rotation.y=t*2;u.st.position.y=1.6+Math.sin(t*3+i)*.12;u.ring.scale.setScalar(1+Math.sin(t*3+i)*.1)});
+    if(tapMark.visible){markT+=dt;tapMark.scale.setScalar(1+markT);tapMark.material.opacity=Math.max(0,.8-markT);if(markT>.8)tapMark.visible=false}
+    if(zoomed){const hp=hero.actor.position;camT.set(Math.max(-W+2.5,Math.min(W-2.5,hp.x)),0,Math.max(-D+2,Math.min(D-1.5,hp.z)))}
+    placeCam(dt);
+    renderer.render(scene,cam);
+    labels.forEach((l,i)=>{pv.copy(l.v).project(cam);const el=labelEls[i];if(el)el.style.transform=`translate(${(pv.x+1)/2*w}px,${(1-pv.y)/2*h}px) translate(-50%,-50%)`});
+    others.forEach(o=>{pv.copy(o.w.actor.position);pv.y+=1.35;pv.project(cam);o.tag.style.transform=`translate(${(pv.x+1)/2*w}px,${(1-pv.y)/2*h}px) translate(-50%,-100%)`});
+  }
+
+  /* ---- body animation shared by your hero and friends' heroes ---- */
+  function animBody(w,t){
+    const P=w.built.parts; P.head.rotation.z=Math.sin(t*1.1+w.speed*9)*.05; w.built.root.position.y=w.bounce||0;
     P.armL.rotation.z=-.12; P.armR.rotation.z=P.wand?.6:.12;
-    const R=hero.built.root,ps=hero.pose;R.rotation.x=0;P.head.rotation.x=0;
-    if(ps&&!hero.path.length){const sitY=ps.h!=null?ps.h/SC-.95:0;
+    const R=w.built.root,ps=w.pose;R.rotation.x=0;P.head.rotation.x=0;
+    if(ps&&!w.path.length){const sitY=ps.h!=null?ps.h/SC-.95:0;
       if(["sit","sitwork","bath","readsit"].includes(ps.type)){R.position.y=sitY;P.legL.rotation.x=P.legR.rotation.x=-1.45;
         if(ps.type==="sitwork"){P.armL.rotation.x=-1.0+Math.sin(t*7)*.12;P.armR.rotation.x=-1.0-Math.sin(t*7)*.12}
         else if(ps.type==="readsit"){P.armL.rotation.x=P.armR.rotation.x=-1.2;P.head.rotation.x=.25}
@@ -830,23 +880,42 @@ const Hero=(function(){
       else if(ps.type==="use"){P.armL.rotation.x=-1.0+Math.sin(t*5)*.2;P.armR.rotation.x=-1.0-Math.sin(t*5)*.2;P.head.rotation.x=.18}
       else if(ps.type==="read"){P.armL.rotation.x=P.armR.rotation.x=-1.2;P.head.rotation.x=.25}
       else if(ps.type==="water"){P.armR.rotation.x=-1.1;P.armR.rotation.z=.3+Math.sin(t*3)*.12;P.head.rotation.x=.2}}
-    if(cheerT>=0){cheerT+=dt;const p=Math.min(cheerT/.9,1),s=Math.sin(p*Math.PI);hero.built.root.position.y+=s*.9;P.armL.rotation.z=-2.4*s-.32;if(!P.wand)P.armR.rotation.z=2.4*s+.32;if(p>=1)cheerT=-1}
-    if(spinT>=0){spinT+=dt;const p=Math.min(spinT/1.2,1);hero.built.root.rotation.y=p*Math.PI*2;hero.built.root.position.y+=Math.sin(p*Math.PI)*.6;if(p>=1){spinT=-1;hero.built.root.rotation.y=0}}
-    if(P.wings) P.wings.userData.wings.forEach(w=>w.rotation.y=-w.userData.s*(.3+Math.sin(t*6)*.25));
+    if(P.wings) P.wings.userData.wings.forEach(x=>x.rotation.y=-x.userData.s*(.3+Math.sin(t*6)*.25));
     if(P.wand) P.wand.userData.star.rotation.y=t*2;
     if(P.sparkles) P.sparkles.userData.sparks.forEach(s=>{const a=t*.8+s.userData.i/8*Math.PI*2;s.position.set(Math.cos(a)*1.25,.6+s.userData.i*.22+Math.sin(t*2+s.userData.i)*.1,Math.sin(a)*1.25);s.rotation.y=t*2});
-    if(buddy){const hp=hero.actor.position,hr=hero.actor.rotation.y;const tx=hp.x-Math.sin(hr)*.5+Math.cos(hr)*.4,tz=hp.z-Math.cos(hr)*.5-Math.sin(hr)*.4;
-      const dx=tx-buddy.position.x,dz=tz-buddy.position.z,d=Math.hypot(dx,dz);
-      if(d>.08){buddy.position.x+=dx*Math.min(1,dt*3);buddy.position.z+=dz*Math.min(1,dt*3);buddy.rotation.y=Math.atan2(dx,dz)}
-      buddy.children[0].position.y=Math.abs(Math.sin(t*(d>.15?9:3)))*.25}
-    markG.children.forEach((g,i)=>{const u=g.userData;u.st.rotation.y=t*2;u.st.position.y=1.6+Math.sin(t*3+i)*.12;u.ring.scale.setScalar(1+Math.sin(t*3+i)*.1)});
-    if(tapMark.visible){markT+=dt;tapMark.scale.setScalar(1+markT);tapMark.material.opacity=Math.max(0,.8-markT);if(markT>.8)tapMark.visible=false}
-    if(zoomed){const hp=hero.actor.position;camT.set(Math.max(-W+2.5,Math.min(W-2.5,hp.x)),0,Math.max(-D+2,Math.min(D-1.5,hp.z)))}
-    placeCam(dt);
-    renderer.render(scene,cam);
-    const w=stage.clientWidth,h=stage.clientHeight;
-    labels.forEach((l,i)=>{pv.copy(l.v).project(cam);const el=labelEls[i];if(el)el.style.transform=`translate(${(pv.x+1)/2*w}px,${(1-pv.y)/2*h}px) translate(-50%,-50%)`});
   }
+
+  /* ---- friends in your study group: their heroes walk around the same house ---- */
+  const ROOMS=[["Balcony",-7,-6.5,-2.5,-3.5],["Dining room",-2.5,-6.5,2,-3.5],["Kitchen",-1.6,-3.5,2,2.5],["Living room",-7,-3.5,-1.6,2.5],["Bedroom",2,-6.5,7,-1.5],["Hall",2,-1.5,4,2.5],["Bathroom",4,-1.5,7,2.5],["Study",-7,2.5,-2,6.5],["Entry",-2,2.5,.5,6.5],["Bath 2",.5,2.5,2.5,6.5],["Laundry",2.5,2.5,7,6.5]];
+  function roomAt(x,z){const r=ROOMS.find(([,a,b,c,d])=>x>=a&&x<=c&&z>=b&&z<=d);return r?r[0]:"Outside"}
+  const others=new Map();let onOther=null,onWave=null;
+  function dropOther(id){const o=others.get(id);if(!o)return;actorsG.remove(o.w.actor);dispose(o.w.actor);o.tag.remove();others.delete(id)}
+  function setOthers(list){
+    if(!grid)return;const seen=new Set();
+    list.forEach(p=>{seen.add(p.id);let o=others.get(p.id);const key=JSON.stringify([p.look,p.equip]);
+      if(!o||o.key!==key){
+        const b=buildHero(p.look,p.equip),w={built:b,actor:makeActor(b),speed:2.1,path:[],phase:0,pose:null};
+        if(o){w.actor.position.copy(o.w.actor.position);w.actor.rotation.y=o.w.actor.rotation.y;actorsG.remove(o.w.actor);dispose(o.w.actor)}
+        else{w.actor.position.set(p.x,0,p.z);w.actor.rotation.y=p.ry}
+        actorsG.add(w.actor);
+        const tag=o?o.tag:document.createElement("div");if(!o){tag.className="ptag";labelsEl.appendChild(tag)}
+        o=Object.assign(o||{cheerT:-1,waveSeen:p.wave},{w,key,tag,id:p.id});others.set(p.id,o)}
+      o.tx=p.x;o.tz=p.z;o.ry=p.ry;o.w.pose=p.pose;
+      if(o.tag.textContent!==p.name)o.tag.textContent=p.name;
+      if(p.wave&&p.wave!==o.waveSeen){o.waveSeen=p.wave;o.cheerT=0}});
+    [...others.keys()].forEach(id=>{if(!seen.has(id))dropOther(id)});
+  }
+  function stepOther(o,dt,t){
+    const w=o.w,p=w.actor.position,dx=o.tx-p.x,dz=o.tz-p.z,d=Math.hypot(dx,dz);let moving=false;
+    if(d>4){p.x=o.tx;p.z=o.tz}
+    else if(d>.01){const s=Math.min(d,Math.max(2.1*dt,d*dt*5));p.x+=dx/d*s;p.z+=dz/d*s;moving=d>.06&&!w.pose}
+    turn(w,moving?Math.atan2(dx,dz):o.ry,dt*(moving?9:6));
+    swing(w,dt,moving);animBody(w,t);
+    if(o.cheerT>=0){o.cheerT+=dt;const P=w.built.parts,q=Math.min(o.cheerT/.9,1),s=Math.sin(q*Math.PI);w.built.root.position.y+=s*.9;P.armL.rotation.z=-2.4*s-.32;if(!P.wand)P.armR.rotation.z=2.4*s+.32;if(q>=1)o.cheerT=-1}
+  }
+  function state(){ if(!hero)return null;const p=hero.actor.position,ps=hero.pose&&!hero.path.length?hero.pose:null;
+    return {x:Math.round(p.x*100)/100,z:Math.round(p.z*100)/100,ry:Math.round(hero.actor.rotation.y*100)/100,
+      pose:ps?{t:ps.type,h:ps.h==null?null:ps.h}:null,act:ps?hero.actId||null:null,room:roomAt(p.x,p.z)} }
   loop();
 
   /* ---- shop thumbnails, rendered once with a small offscreen renderer ---- */
@@ -864,7 +933,8 @@ const Hero=(function(){
     }catch(e){cache[id]=""}
     return cache[id];
   }
-  return {rebuild, cheer(){cheerT=0}, spin(){spinT=0}, thumb, goTo, setMarkers, setZoom, onSpotTap(f){onSpot=f}, onAct(f){onAct=f}};
+  return {rebuild, cheer(){cheerT=0}, spin(){spinT=0}, thumb, goTo, setMarkers, setZoom, onSpotTap(f){onSpot=f}, onAct(f){onAct=f},
+    state, setOthers, roomAt, onOther(f){onOther=f}, onWave(f){onWave=f}};
 })();
 
 /* =====================================================================
@@ -944,6 +1014,8 @@ function render(){
       <div class="clay stat"><b>${S.total}</b><small>quests done</small></div>
       <div class="clay stat"><b>${S.best}</b><small>best streak</small></div>
       <div class="clay stat"><b>${fmtFocus(S.focus&&S.focus.day===dayKey()?S.focus.sec:0)}</b><small>focus today</small></div></div>`}`;
+  } else if(tab==="group"){
+    renderGroup(v);
   } else {
     v.innerHTML=`<div class="clay wallet"><svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l7 6-7 14-7-14z" fill="var(--sky)" stroke="var(--pink-deep)" stroke-width="1.4" stroke-linejoin="round"/></svg>
       <div><b>${S.wallet} XP</b><p>to spend. Finishing quests earns more, and spending never lowers your level.</p></div></div>
@@ -1027,6 +1099,8 @@ document.addEventListener("click",e=>{
     const r=buy.getBoundingClientRect();confetti(r.left+r.width/2,r.top,18)}return}
   const eq=e.target.closest("[data-equip]");
   if(eq){const it=ITEMS.find(i=>i.id===eq.dataset.equip);S.equip[it.slot]=S.equip[it.slot]===it.id?null:it.id;save();render();Hero.rebuild();return}
+  const mpb=e.target.closest("[data-mp]");if(mpb){mpClick(mpb);return}
+  if(e.target.closest("#gChip")){tab="group";setDrawer(true);render();return}
   const btn=e.target.closest("[data-act]");
   if(!btn){if(pendingDel){pendingDel=null;render()}return}
   const row=btn.closest(".q");const q=S.tasks.find(x=>x.id===row.dataset.id);if(!q)return;
@@ -1093,6 +1167,162 @@ function focusTick(){
 setInterval(focusTick,1000);
 window.addEventListener("pagehide",()=>{focusTick();lsSet(S)});
 document.addEventListener("visibilitychange",()=>{focusTick();if(document.visibilityState==="hidden")save()});
+/* =====================================================================
+   Online study groups. Uses the claude.ai "room" capability, so it needs no
+   server or account setup: everyone with the game's Claude link open shares a
+   lobby, and each group code is its own room. Only your hero, name, level,
+   position in the house and focus time are shared. Quests never leave you.
+   ===================================================================== */
+const ACT_WORDS={desk:"Studying at the desk",dining:"Studying at the table",island:"Coffee break",books:"Picking a book",beanbag:"Reading",
+  bed:"Napping",sofa:"Relaxing",tv:"Watching a show",stove:"Cooking",fridge:"Grabbing a snack",tub:"Taking a bath",tub2:"Taking a bath",
+  sink:"Brushing teeth",toilet:"Quick break",washer:"Doing laundry",basket:"Folding clothes",balcony:"Getting fresh air",
+  wardrobe:"Picking an outfit",dresser:"Getting ready",plant:"Watering plants"};
+const POSES=["sit","sitwork","bath","readsit","lie","use","read","water"];
+const MP={state:"loading",lobby:null,group:null,code:"",gname:"",lobbyPeers:[],peers:[],joinedAt:0,joining:false,err:"",names:{}};
+const GKEY="kates-day-group";
+const cleanName=v=>typeof v!=="string"?"":v.replace(/[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g,"").trim().slice(0,24);
+const cleanCode=v=>String(v||"").toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,8);
+const pick=(v,list)=>list.includes(v)?v:list[0];
+const num=(v,lo,hi,d=0)=>typeof v==="number"&&isFinite(v)?Math.max(lo,Math.min(hi,v)):d;
+function safeLook(l){l=l&&typeof l==="object"?l:{};
+  return {name:"",gender:l.gender==="boy"?"boy":"girl",hair:HAIRS.some(h=>h[0]===l.hair)?l.hair:"short",hairColor:pick(l.hairColor,HAIRC),skin:pick(l.skin,SKINS),eye:pick(l.eye,EYES),outfit:pick(l.outfit,OUTFITS)}}
+function safeEquip(e){const o={};if(e&&typeof e==="object")ITEMS.forEach(it=>{if(e[it.slot]===it.id)o[it.slot]=it.id});return o}
+const myName=()=>S.look.name.trim().slice(0,24)||"Friend";
+const focusMin=()=>S.focus&&S.focus.day===dayKey()?Math.floor(S.focus.sec/60):0;
+let waveAt=0;
+function sayMsg(t){$("say").textContent=t}
+
+function lobbyMe(){return {n:myName(),lv:S.lvl,g:MP.code||null,gn:MP.code?(MP.gname||null):null}}
+function groupMe(){const st=Hero.state()||{x:0,z:0,ry:0,pose:null,act:null};const L=S.look;
+  return {n:myName(),lv:S.lvl,look:{gender:L.gender,hair:L.hair,hairColor:L.hairColor,skin:L.skin,eye:L.eye,outfit:L.outfit},eq:safeEquip(S.equip),
+    x:st.x,z:st.z,ry:st.ry,p:st.pose,a:st.act,f:focusMin(),w:waveAt||null,gn:MP.gname||null}}
+let lastLobby="",lastGroup="";
+function pushPresence(){
+  if(MP.lobby){const me=lobbyMe(),j=JSON.stringify(me);if(j!==lastLobby){lastLobby=j;MP.lobby.presence(me).catch(()=>{})}}
+  if(MP.group){const me=groupMe(),j=JSON.stringify(me);if(j!==lastGroup){lastGroup=j;MP.group.presence(me).catch(()=>{})}}
+}
+setInterval(pushPresence,150);
+
+function viewPeer(p){const q=p.presence||{};
+  return {id:p.peer,me:p.sameTab,name:cleanName(q.n)||"Friend",lv:Math.floor(num(q.lv,1,999,1)),look:safeLook(q.look),equip:safeEquip(q.eq),
+    x:num(q.x,-6.8,6.8),z:num(q.z,-6.3,6.3),ry:num(q.ry,-20,20),pose:q.p&&POSES.includes(q.p.t)?{type:q.p.t,h:num(q.p.h,0,1,.3)}:null,
+    act:typeof q.a==="string"&&ACT_WORDS[q.a]?q.a:null,f:Math.floor(num(q.f,0,1440)),wave:num(q.w,0,1e14),has:typeof q.x==="number"}}
+function groupPeers(){return MP.peers.filter(p=>p.kind==="viewer").map(viewPeer)}
+
+async function mpStart(){
+  let room=null;
+  try{ if(window.claude&&window.claude.use) room=await claude.use("room") }catch(e){}
+  if(!room){MP.state="off";groupDirty(true);return}
+  MP.lobby=room;MP.state="on";
+  room.onPeers(ch=>{MP.lobbyPeers=ch.peers;groupDirty()},e=>{MP.state="off";MP.lobby=null;MP.group=null;MP.peers=[];Hero.setOthers([]);groupDirty(true)});
+  pushPresence();
+  let saved=null;try{saved=JSON.parse(localStorage.getItem(GKEY)||"null")}catch(e){}
+  if(saved&&saved.code)joinGroup(saved.code,saved.name,true);
+  groupDirty(true);
+}
+async function joinGroup(code,name,quiet){
+  code=cleanCode(code);if(!code||!MP.lobby||MP.joining)return;
+  if(MP.group&&MP.code===code)return;
+  if(MP.group)await leaveGroup(true);
+  MP.joining=true;MP.err="";groupDirty(true);
+  try{
+    const g=await MP.lobby.join("kd-"+code);
+    MP.group=g;MP.code=code;MP.gname=cleanName(name);MP.joinedAt=Date.now();MP.names={};lastGroup="";
+    g.onPeers(ch=>{if(MP.group!==g)return;MP.peers=ch.peers;onGroupPeers()},
+      e=>{if(MP.group!==g)return;MP.group=null;MP.peers=[];Hero.setOthers([]);MP.err="You were disconnected from the group. Tap Join to try again.";groupDirty(true)});
+    try{localStorage.setItem(GKEY,JSON.stringify({code,name:MP.gname}))}catch(e){}
+    if(!quiet)sayMsg(`You're in ${MP.gname||"the study group"}! Friends who join walk around your house with you.`);
+  }catch(e){MP.err=e&&e.code==="not_permitted"?"Study groups aren't available for this account here.":"Couldn't join right now. Try again in a moment."}
+  MP.joining=false;pushPresence();groupDirty(true);
+}
+async function leaveGroup(quiet){
+  const g=MP.group;MP.group=null;MP.code="";MP.gname="";MP.peers=[];Hero.setOthers([]);
+  try{localStorage.removeItem(GKEY)}catch(e){}
+  if(g)try{await g.leave()}catch(e){}
+  if(!quiet)sayMsg("You left the study group. Back to studying solo.");
+  pushPresence();groupDirty(true);
+}
+function onGroupPeers(){
+  const ps=groupPeers();
+  Hero.setOthers(ps.filter(p=>!p.me&&p.has));
+  if(!MP.gname){const p=MP.peers.find(p=>cleanName(p.presence&&p.presence.gn));if(p){MP.gname=cleanName(p.presence.gn);try{localStorage.setItem(GKEY,JSON.stringify({code:MP.code,name:MP.gname}))}catch(e){}}}
+  const settled=Date.now()-MP.joinedAt>3000,now={};
+  ps.forEach(p=>{if(p.me||!p.has)return;now[p.id]=p.name;if(settled&&!MP.names[p.id])sayMsg(`${p.name} joined your study group!`)});
+  if(settled)Object.keys(MP.names).forEach(id=>{if(!now[id])sayMsg(`${MP.names[id]} left the study group.`)});
+  MP.names=now;
+  groupDirty();
+}
+Hero.onWave(()=>{waveAt=Date.now()});
+Hero.onOther(id=>{const p=groupPeers().find(x=>x.id===id);if(!p)return;
+  sayMsg(`${p.name} (Lv ${p.lv}) · ${Hero.roomAt(p.x,p.z)} · ${p.act?ACT_WORDS[p.act]:"Hanging out"} · ${fmtFocus(p.f*60)} of focus today. You waved!`);
+  waveAt=Date.now();Hero.cheer()});
+
+let gTimer=null,gLast=0;
+function groupDirty(now){
+  const ps=MP.group?groupPeers():[];
+  $("gChip").hidden=!MP.group;$("gCount").textContent=ps.length||1;
+  if(tab!=="group")return;
+  if(now){clearTimeout(gTimer);gTimer=null;gLast=Date.now();render();return}
+  if(gTimer)return;
+  gTimer=setTimeout(()=>{gTimer=null;gLast=Date.now();if(tab==="group")drawGroupLists()},Math.max(0,800-(Date.now()-gLast)));
+}
+function memberRow(p){
+  const where=p.has?`${Hero.roomAt(p.x,p.z)} · ${p.act?ACT_WORDS[p.act]:"Hanging out"}`:"Just arrived";
+  return `<div class="clay gp-row"><span class="gp-dot" style="background:${p.look.outfit}"></span>
+    <div class="gp-main"><b>${esc(p.name)}</b>${p.me?`<span class="gp-you">you</span>`:""} <small>Lv ${p.lv} · ${esc(where)}</small></div>
+    <span class="gp-f" title="Focus time today">${fmtFocus(p.f*60)}</span></div>`}
+function openGroups(){
+  const m={};MP.lobbyPeers.forEach(p=>{const q=p.presence||{},c=cleanCode(q.g);if(!c||c===MP.code||p.kind!=="viewer")return;
+    const g=m[c]||(m[c]={code:c,name:"",n:0});g.n++;if(!g.name)g.name=cleanName(q.gn)});
+  return Object.values(m).sort((a,b)=>b.n-a.n).slice(0,8)}
+function drawGroupLists(){
+  const ml=$("gpMembers");
+  if(ml){const ps=groupPeers().sort((a,b)=>(b.me-a.me)||(b.f-a.f));
+    ml.innerHTML=ps.length?ps.map(memberRow).join(""):`<div class="empty"><b>Just you so far</b>Share the code so friends can join.</div>`;
+    const tot=ps.reduce((a,p)=>a+p.f,0);$("gpTotal").textContent=fmtFocus(tot*60)}
+  const ol=$("gpOpen");
+  if(ol){const gs=openGroups(),solo=MP.lobbyPeers.filter(p=>p.kind==="viewer"&&!p.sameTab&&!cleanCode(p.presence&&p.presence.g)).length;
+    ol.innerHTML=(gs.length?gs.map(g=>`<div class="clay gp-row"><div class="gp-main"><b>${esc(g.name||"Study group")}</b><small>${g.n} studying · code ${g.code.toUpperCase()}</small></div>
+      <button class="btn3d" style="padding:8px 14px;border-radius:12px" data-mp="join" data-code="${g.code}" data-name="${esc(g.name)}">Join</button></div>`).join("")
+      :`<p class="gp-note">No open groups right now. Make one and share the code!</p>`)
+      +(solo?`<p class="gp-note">${solo} other ${solo===1?"person is":"people are"} online studying solo.</p>`:"")}
+}
+function renderGroup(v){
+  const privacy=`<p class="gp-note">Your quests stay private. Friends only see your hero, name, level, which room you're in, and your focus time today.</p>`;
+  if(MP.state==="loading"){v.innerHTML=`<div class="clay panel"><h3>Study groups</h3><p class="sub">Connecting...</p></div>`;return}
+  if(MP.state==="off"){v.innerHTML=`<div class="clay panel"><h3>Study groups</h3>
+    <p class="sub">You're playing solo here. Study groups work when you open Kate's Day from its Claude link while signed in to Claude.</p>${privacy}</div>`;return}
+  const err=MP.err?`<p class="gp-err">${esc(MP.err)}</p>`:"";
+  if(!MP.group){
+    v.innerHTML=`<div class="clay panel"><h3>Study together</h3>
+      <p class="sub">Make a group or join a friend's. Everyone in a group shares one house, so you can walk around the rooms together while you study.</p>${err}
+      <form class="gp-sec" data-mpform="make"><h4>Make a group</h4><div class="inrow"><input class="txt" id="g-name" maxlength="24" placeholder="Group name, e.g. Exam crew"><button class="btn3d" type="submit" ${MP.joining?"disabled":""}>Make</button></div></form>
+      <form class="gp-sec" data-mpform="join"><h4>Join with a code</h4><div class="inrow"><input class="txt" id="g-code" maxlength="8" placeholder="Code" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:.15em"><button class="btn3d" type="submit" ${MP.joining?"disabled":""}>Join</button></div></form>
+      ${privacy}</div>
+      <div class="gp-sec"><h4>Open groups</h4><div class="gp-sec" id="gpOpen"></div></div>`;
+  } else {
+    v.innerHTML=`<div class="clay panel">
+      <div class="gp-head"><div><h3>${esc(MP.gname||"Study group")}</h3><p class="gp-note" style="margin-top:4px">Friends join with this code</p></div>
+        <button class="gp-ghost" data-mp="leave">Leave</button></div>
+      <div class="gp-head"><span class="gp-code">${MP.code.toUpperCase()}</span><button class="gp-ghost" data-mp="copy">Copy code</button></div>
+      <div class="gp-total"><span class="gp-note" style="color:var(--ink)">Focused together today</span><b id="gpTotal">0m</b></div>
+      ${err}<div class="gp-sec" id="gpMembers"></div>
+      <p class="gp-note">Tap your hero to wave. Tap a friend's hero to see what they're up to.</p>${privacy}</div>`;
+  }
+  drawGroupLists();
+}
+function newCode(){const a="abcdefghjkmnpqrstuvwxyz23456789";let c="";for(let i=0;i<5;i++)c+=a[Math.floor(Math.random()*a.length)];return c}
+function mpClick(b){
+  const k=b.dataset.mp;
+  if(k==="join")joinGroup(b.dataset.code,b.dataset.name);
+  if(k==="leave")leaveGroup();
+  if(k==="copy"){const c=MP.code.toUpperCase();
+    try{navigator.clipboard.writeText(c).then(()=>sayMsg(`Copied ${c}. Send it to a friend!`),()=>sayMsg(`Your group code is ${c}.`))}catch(e){sayMsg(`Your group code is ${c}.`)}}
+}
+document.addEventListener("submit",e=>{const f=e.target.closest("[data-mpform]");if(!f)return;e.preventDefault();
+  if(f.dataset.mpform==="make"){joinGroup(newCode(),$("g-name").value.trim()||`${myName()}'s group`)}
+  else{const c=cleanCode($("g-code").value);if(!c){MP.err="Type the code your friend sent you.";groupDirty(true);return}joinGroup(c,"")}});
+mpStart();
 connect();
 })();
 </script>
