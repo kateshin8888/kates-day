@@ -251,7 +251,7 @@ html,body{height:100%;overflow:hidden}
     <div class="lvl-row"><span class="hname" id="hname">Hero</span><span class="lvl">Lv <span id="lvl">1</span></span><span class="rank" id="rank">Sprout</span></div>
     <div class="bar" role="progressbar" aria-label="XP to next level" id="barwrap"><i id="bar"></i></div>
     <div class="xpnum" id="xpnum">0 / 50 XP</div>
-    <div class="focusrow" id="focusChip" title="Counts while this page is open on your screen. 1 XP every minute, plus 5 bonus XP every 25 minutes.">
+    <div class="focusrow" id="focusChip" title="Counts while this page is open, even if you switch to other tabs or sites. 1 XP every minute, plus 5 bonus XP every 25 minutes.">
       <span class="fdot"></span><span class="flabel" id="focusLabel">Focusing today</span><b class="fclock" id="focusTime">0:00:00</b>
     </div>
   </div>
@@ -1071,22 +1071,28 @@ function gainXP(n){
 }
 function fmtClock(sec){const h=Math.floor(sec/3600),m=Math.floor(sec/60)%60,x=sec%60;return `${h}:${pad(m)}:${pad(x)}`}
 function fmtFocus(sec){const m=Math.floor(sec/60),h=Math.floor(m/60);return h?`${h}h ${m%60}m`:`${m}m`}
+// Counts while the page is open, even in a background tab. Uses the real clock, because
+// browsers slow down timers in background tabs. A gap over 5 minutes (computer asleep) is not counted.
+let lastTick=Date.now(),lastSaved=0;
 function focusTick(){
+  const now=Date.now(),gap=(now-lastTick)/1000;lastTick=now;
   const t=dayKey();if(!S.focus||S.focus.day!==t)S.focus={day:t,sec:0};
-  const on=document.visibilityState==="visible"&&S.made;
-  $("focusChip").classList.toggle("paused",!on);$("focusLabel").textContent=on?"Focusing today":"Paused, come back to keep counting";
-  if(on){S.focus.sec++;
-    if(S.focus.sec%60===0){gainXP(1);S.focusTotal=(S.focusTotal||0)+1;
-      const c=$("focusChip").getBoundingClientRect(),f=document.createElement("div");f.className="floatxp";f.textContent="+1 XP";
-      f.style.left=c.left+"px";f.style.top=(c.bottom+4)+"px";document.body.appendChild(f);setTimeout(()=>f.remove(),1000);
-      if(S.focus.sec%1500===0){gainXP(5);$("say").textContent=`${S.focus.sec/60} minutes of focus today! +5 bonus XP.`;Hero.cheer()}
-      save()}}
-  $("focusTime").textContent=fmtClock(S.focus?S.focus.sec:0);
-  if(on&&S.focus.sec%15===0)lsSet(S);
+  if(S.made&&gap>0&&gap<=300){
+    const before=Math.floor(S.focus.sec);S.focus.sec+=gap;const after=Math.floor(S.focus.sec);
+    const mins=Math.floor(after/60)-Math.floor(before/60),bonus=Math.floor(after/1500)-Math.floor(before/1500);
+    if(mins>0){gainXP(mins);S.focusTotal=(S.focusTotal||0)+mins;
+      if(document.visibilityState==="visible"){const c=$("focusChip").getBoundingClientRect(),f=document.createElement("div");f.className="floatxp";f.textContent="+"+mins+" XP";
+        f.style.left=c.left+"px";f.style.top=(c.bottom+4)+"px";document.body.appendChild(f);setTimeout(()=>f.remove(),1000)}
+      if(bonus>0){gainXP(5*bonus);$("say").textContent=`${Math.floor(after/60)} minutes of focus today! +${5*bonus} bonus XP.`;Hero.cheer()}
+      save()}
+    if(now-lastSaved>15000){lastSaved=now;lsSet(S)}}
+  $("focusChip").classList.toggle("paused",!S.made);
+  $("focusLabel").textContent="Focusing today";
+  $("focusTime").textContent=fmtClock(Math.floor(S.focus.sec));
 }
 setInterval(focusTick,1000);
-window.addEventListener("pagehide",()=>lsSet(S));
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")save();if(document.visibilityState==="visible"&&S.made)$("say").textContent="Welcome back! Focus time is counting again."});
+window.addEventListener("pagehide",()=>{focusTick();lsSet(S)});
+document.addEventListener("visibilitychange",()=>{focusTick();if(document.visibilityState==="hidden")save()});
 connect();
 })();
 </script>

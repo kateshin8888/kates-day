@@ -10,7 +10,7 @@ Open `index.html` in a browser, or turn on GitHub Pages for this repository (Set
 
 ## Focus time
 
-While the page is open and visible, you earn 1 XP every minute, plus 5 bonus XP for every 25 minutes of focus in a day. The timer pauses when you switch to another tab or app.
+While the page is open, you earn 1 XP every minute, plus 5 bonus XP for every 25 minutes of focus in a day. It keeps counting when you switch to other tabs, sites or apps, like a study timer. It stops when you close the tab, and time while your computer is asleep is not counted.
 
 ## Notes
 
