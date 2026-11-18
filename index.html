@@ -189,7 +189,13 @@ html,body{height:100%;overflow:hidden}
 .hud .brand{font-size:21px;text-shadow:0 2px 0 #ffffffcc}
 .hud .chips{gap:6px}
 .hud .chip{padding:5px 10px}
-.chip.focus.paused{opacity:.55}
+.focusrow{display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1.5px dashed var(--line)}
+.fdot{width:10px;height:10px;border-radius:50%;background:var(--mint-deep);box-shadow:0 0 0 0 var(--mint);animation:fpulse 1.6s infinite;flex:none}
+@keyframes fpulse{70%{box-shadow:0 0 0 7px transparent}}
+.flabel{font-weight:800;font-size:12.5px;color:var(--muted);flex:1}
+.fclock{font-family:var(--display);font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink);letter-spacing:.02em}
+.focusrow.paused .fdot{background:var(--muted);animation:none}
+.focusrow.paused .fclock{color:var(--muted)}
 .chip.zoom{border:0;cursor:pointer;font:inherit;font-weight:800;font-size:13px;color:var(--ink)}
 .herocard{padding:10px 14px 10px;border-radius:20px}
 .herocard .hname{font-size:18px}
@@ -239,13 +245,15 @@ html,body{height:100%;overflow:hidden}
     <div class="chips">
       <span class="chip" title="Day streak"><svg viewBox="0 0 24 24"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3-1-3 0-7 1-10z" fill="var(--butter)" stroke="var(--pink-deep)" stroke-width="1.6" stroke-linejoin="round"/></svg><span id="streak">0</span></span>
       <span class="chip" title="XP you can spend in the shop"><svg viewBox="0 0 24 24"><path d="M12 2l7 6-7 14-7-14z" fill="var(--sky)" stroke="var(--pink-deep)" stroke-width="1.6" stroke-linejoin="round"/></svg><span id="wallet">0</span> XP</span>
-      <span class="chip focus" id="focusChip" title="Time focused today. You earn 1 XP for every minute this page is open, plus 5 bonus XP every 25 minutes."><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" fill="var(--mint)" stroke="var(--pink-deep)" stroke-width="1.6"/><path d="M12 9v4l3 2M10 3h4" stroke="var(--pink-deep)" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg><span id="focusTime">0m</span></span>
     </div>
   </div>
   <div class="clay herocard">
     <div class="lvl-row"><span class="hname" id="hname">Hero</span><span class="lvl">Lv <span id="lvl">1</span></span><span class="rank" id="rank">Sprout</span></div>
     <div class="bar" role="progressbar" aria-label="XP to next level" id="barwrap"><i id="bar"></i></div>
     <div class="xpnum" id="xpnum">0 / 50 XP</div>
+    <div class="focusrow" id="focusChip" title="Counts while this page is open on your screen. 1 XP every minute, plus 5 bonus XP every 25 minutes.">
+      <span class="fdot"></span><span class="flabel" id="focusLabel">Focusing today</span><b class="fclock" id="focusTime">0:00:00</b>
+    </div>
   </div>
   <div class="say-row"><div class="say" id="say">Tap furniture to use it, or tap the floor to walk.</div><button class="chip zoom" id="zoomBtn">Whole house</button></div>
 </header>
@@ -1061,21 +1069,24 @@ function gainXP(n){
   while(S.xp>=needFor(S.lvl)){S.xp-=needFor(S.lvl);S.lvl++;leveled=true}
   renderHead();if(leveled)setTimeout(levelUp,300);
 }
+function fmtClock(sec){const h=Math.floor(sec/3600),m=Math.floor(sec/60)%60,x=sec%60;return `${h}:${pad(m)}:${pad(x)}`}
 function fmtFocus(sec){const m=Math.floor(sec/60),h=Math.floor(m/60);return h?`${h}h ${m%60}m`:`${m}m`}
 function focusTick(){
   const t=dayKey();if(!S.focus||S.focus.day!==t)S.focus={day:t,sec:0};
   const on=document.visibilityState==="visible"&&S.made;
-  $("focusChip").classList.toggle("paused",!on);
+  $("focusChip").classList.toggle("paused",!on);$("focusLabel").textContent=on?"Focusing today":"Paused, come back to keep counting";
   if(on){S.focus.sec++;
     if(S.focus.sec%60===0){gainXP(1);S.focusTotal=(S.focusTotal||0)+1;
       const c=$("focusChip").getBoundingClientRect(),f=document.createElement("div");f.className="floatxp";f.textContent="+1 XP";
       f.style.left=c.left+"px";f.style.top=(c.bottom+4)+"px";document.body.appendChild(f);setTimeout(()=>f.remove(),1000);
       if(S.focus.sec%1500===0){gainXP(5);$("say").textContent=`${S.focus.sec/60} minutes of focus today! +5 bonus XP.`;Hero.cheer()}
       save()}}
-  $("focusTime").textContent=fmtFocus(S.focus?S.focus.sec:0);
+  $("focusTime").textContent=fmtClock(S.focus?S.focus.sec:0);
+  if(on&&S.focus.sec%15===0)lsSet(S);
 }
 setInterval(focusTick,1000);
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&S.made)$("say").textContent="Welcome back! Focus time is counting again."});
+window.addEventListener("pagehide",()=>lsSet(S));
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")save();if(document.visibilityState==="visible"&&S.made)$("say").textContent="Welcome back! Focus time is counting again."});
 connect();
 })();
 </script>
