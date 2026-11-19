@@ -1201,9 +1201,10 @@ setInterval(focusTick,1000);
 window.addEventListener("pagehide",()=>{focusTick();lsSet(S)});
 document.addEventListener("visibilitychange",()=>{focusTick();if(document.visibilityState==="hidden")save()});
 /* =====================================================================
-   Online study groups. Uses the claude.ai "room" capability, so it needs no
-   server or account setup: everyone with the game's Claude link open shares a
-   lobby, and each group code is its own room. Only your hero, name, level,
+   Online study groups. From the Claude link it uses the claude.ai "room"
+   capability; on the website it uses Trystero (see webRoom). Neither needs a
+   server or account setup: everyone online shares a lobby, and each group code
+   is its own room. Only your hero, name, level,
    position in the house and focus time are shared. Quests never leave you.
    ===================================================================== */
 const ACT_WORDS={desk:"Studying at the desk",dining:"Studying at the table",island:"Coffee break",books:"Picking a book",beanbag:"Reading",
@@ -1244,9 +1245,34 @@ function viewPeer(p){const q=p.presence||{};
 function housePeers(){return (MP.group?MP.peers:MP.lobbyPeers.filter(p=>!cleanCode(p.presence&&p.presence.g))).filter(p=>p.kind==="viewer")}
 function groupPeers(){return housePeers().map(viewPeer)}
 
+// On the website (GitHub Pages) there's no Claude room, so players connect to each other
+// directly (peer to peer) with Trystero, using free public Nostr relays to find each other.
+// It works like a Claude room: presence(), onPeers(), join() and leave().
+async function webRoom(){
+  const T=await import("./trystero.min.js");
+  const cfg={appId:"kates-day-cozy-quest-game-v1"};
+  function make(name){
+    const r=T.joinRoom(cfg,name),act=r.makeAction("pres");
+    let mine={},cbs=[],t=null;const peers={};
+    const list=()=>[{peer:T.selfId,sameTab:true,isMe:true,kind:"viewer",presence:mine},
+      ...Object.keys(peers).map(id=>({peer:id,sameTab:false,isMe:false,kind:"viewer",presence:peers[id]}))];
+    const emit=()=>{if(t)return;t=setTimeout(()=>{t=null;const l=list();cbs.forEach(f=>{try{f({peers:l})}catch(e){}})},50)};
+    r.onPeerJoin=id=>{if(!peers[id])peers[id]={};act.send(mine,{target:id}).catch(()=>{});emit()};
+    r.onPeerLeave=id=>{delete peers[id];emit()};
+    act.onMessage=(d,ctx)=>{const id=ctx&&ctx.peerId;if(!id||!d||typeof d!=="object"||Array.isArray(d))return;
+      try{if(JSON.stringify(d).length>4096)return}catch(e){return}peers[id]=d;emit()};
+    const key=o=>[o.n,o.lv,o.g,o.gn,o.a,o.f].join("|");
+    return {presence(p){const k0=key(mine);mine=p&&typeof p==="object"?p:{};if(key(mine)!==k0)emit();return act.send(mine)},
+      onPeers(cb){cbs.push(cb);emit()},
+      join(n){return Promise.resolve(make(n))},
+      leave(){cbs=[];return r.leave()}};
+  }
+  return make("main-house");
+}
 async function mpStart(){
   let room=null;
   try{ if(window.claude&&window.claude.use) room=await claude.use("room") }catch(e){}
+  if(!room&&window.isSecureContext&&window.crypto&&crypto.subtle&&window.RTCPeerConnection)try{room=await webRoom()}catch(e){}
   if(!room){MP.state="off";groupDirty(true);return}
   MP.lobby=room;MP.state="on";MP.joinedAt=Date.now();
   room.onPeers(ch=>{MP.lobbyPeers=ch.peers;if(!MP.group)onGroupPeers();else groupDirty()},e=>{MP.state="off";MP.lobby=null;MP.group=null;MP.peers=[];Hero.setOthers([]);groupDirty(true)});
@@ -1326,7 +1352,7 @@ function renderGroup(v){
   const privacy=`<p class="gp-note">Your quests stay private. Other players only see your hero, name, level, which room you're in, and your focus time today.</p>`;
   if(MP.state==="loading"){v.innerHTML=`<div class="clay panel"><h3>Study groups</h3><p class="sub">Connecting...</p></div>`;return}
   if(MP.state==="off"){v.innerHTML=`<div class="clay panel"><h3>Study groups</h3>
-    <p class="sub">You're playing solo here. To see other players and join study groups, open Kate's Day from its Claude link while signed in to Claude.</p>${privacy}</div>`;return}
+    <p class="sub">You're playing solo here. Couldn't connect to other players. Check your internet and reload, or open Kate's Day from its website or its Claude link.</p>${privacy}</div>`;return}
   const err=MP.err?`<p class="gp-err">${esc(MP.err)}</p>`:"";
   if(!MP.group){
     v.innerHTML=`<div class="clay panel"><h3>In the house now</h3>
