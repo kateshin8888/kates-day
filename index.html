@@ -539,15 +539,18 @@ const Hero=(function(){
   /* ---- one neighborhood map: home, school and café ---- */
   const stage=$("stage");
   const renderer=new T.WebGLRenderer({antialias:true,alpha:true});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  // Quality steps down by itself if the frame rate is low, and the choice is remembered on this device.
+  const QL=[{pr:1.5,sh:2048,soft:true},{pr:1.25,sh:1024,soft:false},{pr:1,sh:1024,soft:false},{pr:.8,sh:0}];
+  let qLevel=0;try{qLevel=Math.max(0,Math.min(QL.length-1,+localStorage.getItem("kates-day-quality")||0))}catch(e){}
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,QL[qLevel].pr));
   renderer.outputEncoding=T.sRGBEncoding;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=.9;
-  renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
+  renderer.shadowMap.enabled=QL[qLevel].sh>0;renderer.shadowMap.type=QL[qLevel].soft?T.PCFSoftShadowMap:T.PCFShadowMap;
   stage.appendChild(renderer.domElement);
   const labelsEl=document.createElement("div");labelsEl.className="maplabels";stage.appendChild(labelsEl);
   const scene=new T.Scene();
   const cam=new T.PerspectiveCamera(34,1,.1,200);
   scene.add(new T.HemisphereLight(0xfff4ea,0xc9b8a8,.55));
-  const sun=new T.DirectionalLight(0xfff0da,1.55);sun.position.set(-6,13,7);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+  const sun=new T.DirectionalLight(0xfff0da,1.55);sun.position.set(-6,13,7);sun.castShadow=true;sun.shadow.mapSize.set(QL[qLevel].sh||1024,QL[qLevel].sh||1024);
   Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10,near:1,far:40});sun.shadow.bias=-.0004;sun.shadow.normalBias=.02;sun.shadow.radius=3;scene.add(sun);
   const fill=new T.DirectionalLight(0xdfe8ff,.35);fill.position.set(8,6,-4);scene.add(fill);
   const roomG=new T.Group();scene.add(roomG);
@@ -764,13 +767,31 @@ const Hero=(function(){
   }
 
   let hero=null,npcs=[],buddy=null,cheerT=-1,spinT=-1,markerIds=[],labelEls=[];
+  // The house never moves, so its hundreds of little meshes are baked into one mesh per
+  // material. That cuts draw calls from about 200 to a few dozen, which is what slower laptops need.
+  function mergeStatic(root){
+    root.updateMatrixWorld(true);const groups=new Map(),olds=[];
+    root.traverse(m=>{if(!m.isMesh)return;const k=m.material.uuid+"|"+m.castShadow+m.receiveShadow;
+      if(!groups.has(k))groups.set(k,[]);groups.get(k).push(m);olds.push(m)});
+    const out=new T.Group();
+    groups.forEach(list=>{const m0=list[0];
+      if(list.length===1){const g=m0.geometry.clone().applyMatrix4(m0.matrixWorld);const n=new T.Mesh(g,m0.material);n.castShadow=m0.castShadow;n.receiveShadow=m0.receiveShadow;out.add(n);return}
+      const parts=list.map(m=>{let g=m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone();g.applyMatrix4(m.matrixWorld);return g});
+      let n=0;parts.forEach(g=>n+=g.attributes.position.count);
+      const pos=new Float32Array(n*3),nor=new Float32Array(n*3),uv=new Float32Array(n*2);let o=0;
+      parts.forEach(g=>{const c=g.attributes.position.count;pos.set(g.attributes.position.array,o*3);
+        if(g.attributes.normal)nor.set(g.attributes.normal.array,o*3);if(g.attributes.uv)uv.set(g.attributes.uv.array,o*2);o+=c;g.dispose()});
+      const g=new T.BufferGeometry();g.setAttribute("position",new T.BufferAttribute(pos,3));g.setAttribute("normal",new T.BufferAttribute(nor,3));g.setAttribute("uv",new T.BufferAttribute(uv,2));
+      g.computeBoundingSphere();const mesh=new T.Mesh(g,m0.material);mesh.castShadow=m0.castShadow;mesh.receiveShadow=m0.receiveShadow;out.add(mesh)});
+    olds.forEach(m=>m.geometry.dispose());[...root.children].forEach(c=>root.remove(c));root.add(out);
+  }
   function dispose(o){o.traverse(m=>{if(m.isMesh){m.geometry.dispose();if(m.material.map){m.material.map.dispose();m.material.dispose()}}})}
   let zoomed=true;const camT=new T.Vector3();
   function buildWorld(){
     colliders=[];spots={};labels=[];acts=[];
     const g=new T.Mesh(new T.PlaneGeometry(2*W+30,2*D+30),new T.MeshStandardMaterial({color:0xffffff,map:(()=>{const t=GRASS();t.repeat.set(16,16);return t})(),roughness:1}));
     g.rotation.x=-Math.PI/2;g.position.y=-.01;roomG.add(g);
-    PFX="home";HOUSE();PFX="";shadowize(roomG);
+    PFX="home";HOUSE();PFX="";shadowize(roomG);mergeStatic(roomG);
     buildGrid();
     labelsEl.innerHTML="";labelEls=labels.map(l=>{const s=document.createElement("span");s.textContent=l.t;if(l.big)s.className="big";labelsEl.appendChild(s);return s});
   }
@@ -819,6 +840,15 @@ const Hero=(function(){
     camDist=zoomed?Math.max(7/(vh*fa),5/vh):Math.max(15.5/(vh*fa),11.5/vh)}
   const ro=new ResizeObserver(()=>size());ro.observe(stage);setTimeout(()=>{["hud","drawer"].forEach(id=>{const el=document.getElementById(id);if(el)ro.observe(el)})},0);
   function setZoom(z){zoomed=z;size()}
+  function setQuality(l){qLevel=l;const q=QL[l];try{localStorage.setItem("kates-day-quality",l)}catch(e){}
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,q.pr));
+    renderer.shadowMap.enabled=q.sh>0;renderer.shadowMap.type=q.soft?T.PCFSoftShadowMap:T.PCFShadowMap;
+    if(q.sh){sun.shadow.mapSize.set(q.sh,q.sh);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}
+    Object.values(mats).forEach(m=>m.needsUpdate=true);scene.traverse(o=>{if(o.isMesh&&o.material)o.material.needsUpdate=true});size()}
+  let fpsN=0,fpsT=0,fpsWarm=0;
+  function watchFps(dt){ // after a short warm-up, check every 3 seconds and step down if under 40 fps
+    if(fpsWarm<2){fpsWarm+=dt;return}fpsN++;fpsT+=dt;
+    if(fpsT>=3){const fps=fpsN/fpsT;fpsN=0;fpsT=0;if(fps<40&&qLevel<QL.length-1){setQuality(qLevel+1);fpsWarm=1}}}
 
   // taps: your hero = cheer, a star = go do that quest, the floor = walk there
   const cv=renderer.domElement, ray=new T.Raycaster(), floorPlane=new T.Plane(new T.Vector3(0,1,0),0);
@@ -845,7 +875,8 @@ const Hero=(function(){
 
   const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
   const clock=new T.Clock(),pv=new T.Vector3();
-  function loop(){ requestAnimationFrame(loop); const dt=Math.min(clock.getDelta(),.05); if(document.hidden||!hero)return;
+  function loop(){ requestAnimationFrame(loop); const raw=clock.getDelta(),dt=Math.min(raw,.05); if(document.hidden||!hero){fpsWarm=0;return}
+    if(raw<.5)watchFps(raw);else fpsWarm=0;
     const t=clock.elapsedTime;
     stepWalker(hero,dt); animBody(hero,t);
     const P=hero.built.parts;
