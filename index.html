@@ -451,7 +451,7 @@ const Hero=(function(){
   const shadowize=o=>o.traverse(m=>{if(m.isMesh){m.castShadow=!m.material.transparent&&m.material.type!=="MeshBasicMaterial";m.receiveShadow=true}});
   const M=(geo,col,x=0,y=0,z=0,extra)=>{const m=new T.Mesh(geo,toon(col,extra));m.position.set(x,y,z);return m};
   const shade=(hex,amt)=>"#"+new T.Color(hex).lerp(new T.Color(amt<0?"#2a1830":"#ffffff"),Math.abs(amt)).getHexString();
-  const S_=(r,ws=24,hs=18)=>new T.SphereGeometry(r,ws,hs);
+  const S_=(r,ws=16,hs=12)=>new T.SphereGeometry(r,ws,hs);
 
   function starGeo(r=.25,d=.08){const s=new T.Shape();for(let i=0;i<10;i++){const a=i/10*Math.PI*2+Math.PI/2,rr=i%2?r*.48:r;const x=Math.cos(a)*rr,y=Math.sin(a)*rr;i?s.lineTo(x,y):s.moveTo(x,y)}
     const g=new T.ExtrudeGeometry(s,{depth:d,bevelEnabled:true,bevelThickness:.04,bevelSize:.04,bevelSegments:3});g.center();return g}
@@ -540,11 +540,12 @@ const Hero=(function(){
   const stage=$("stage");
   const renderer=new T.WebGLRenderer({antialias:true,alpha:true});
   // Quality steps down by itself if the frame rate is low, and the choice is remembered on this device.
-  const QL=[{pr:1.5,sh:2048,soft:true},{pr:1.25,sh:1024,soft:false},{pr:1,sh:1024,soft:false},{pr:.8,sh:0}];
-  let qLevel=0;try{qLevel=Math.max(0,Math.min(QL.length-1,+localStorage.getItem("kates-day-quality")||0))}catch(e){}
+  const QL=[{pr:1.25,sh:1024,soft:false},{pr:1,sh:1024,soft:false},{pr:.85,sh:512,soft:false},{pr:.75,sh:0}];
+  let qLevel=0;try{localStorage.removeItem("kates-day-quality");qLevel=Math.max(0,Math.min(QL.length-1,+localStorage.getItem("kates-day-q2")||0))}catch(e){}
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,QL[qLevel].pr));
   renderer.outputEncoding=T.sRGBEncoding;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=.9;
   renderer.shadowMap.enabled=QL[qLevel].sh>0;renderer.shadowMap.type=QL[qLevel].soft?T.PCFSoftShadowMap:T.PCFShadowMap;
+  renderer.shadowMap.autoUpdate=false;
   stage.appendChild(renderer.domElement);
   const labelsEl=document.createElement("div");labelsEl.className="maplabels";stage.appendChild(labelsEl);
   const scene=new T.Scene();
@@ -573,7 +574,7 @@ const Hero=(function(){
   const CHECK=(a,b)=>tex((g,w,h)=>{g.fillStyle=a;g.fillRect(0,0,w,h);g.fillStyle=b;g.fillRect(0,0,w/2,h/2);g.fillRect(w/2,h/2,w/2,h/2)},64,64);
   const add=o=>{curG.add(o);return o};
   const box=(w,h,d,c,x,y,z,ex)=>add(M(new T.BoxGeometry(w,h,d),c,x,y+h/2,z,ex));
-  const cyl=(rt,rb,h,c,x,y,z,seg=24,ex)=>add(M(new T.CylinderGeometry(rt,rb,h,seg),c,x,y+h/2,z,ex));
+  const cyl=(rt,rb,h,c,x,y,z,seg=16,ex)=>add(M(new T.CylinderGeometry(rt,rb,h,seg),c,x,y+h/2,z,ex));
   const block=(x,z,w,d)=>{const [a,b]=tf(x,z);colliders.push({x:a,z:b,w:w/2,d:d/2})};
   const solid=(w,h,d,c,x,z,y=0)=>{box(w,h,d,c,x,y,z);block(x,z,w,d)};
 
@@ -840,15 +841,15 @@ const Hero=(function(){
     camDist=zoomed?Math.max(7/(vh*fa),5/vh):Math.max(15.5/(vh*fa),11.5/vh)}
   const ro=new ResizeObserver(()=>size());ro.observe(stage);setTimeout(()=>{["hud","drawer"].forEach(id=>{const el=document.getElementById(id);if(el)ro.observe(el)})},0);
   function setZoom(z){zoomed=z;size()}
-  function setQuality(l){qLevel=l;const q=QL[l];try{localStorage.setItem("kates-day-quality",l)}catch(e){}
+  function setQuality(l){qLevel=l;const q=QL[l];try{localStorage.setItem("kates-day-q2",l)}catch(e){}
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,q.pr));
     renderer.shadowMap.enabled=q.sh>0;renderer.shadowMap.type=q.soft?T.PCFSoftShadowMap:T.PCFShadowMap;
     if(q.sh){sun.shadow.mapSize.set(q.sh,q.sh);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}
     Object.values(mats).forEach(m=>m.needsUpdate=true);scene.traverse(o=>{if(o.isMesh&&o.material)o.material.needsUpdate=true});size()}
   let fpsN=0,fpsT=0,fpsWarm=0;
-  function watchFps(dt){ // after a short warm-up, check every 3 seconds and step down if under 40 fps
-    if(fpsWarm<2){fpsWarm+=dt;return}fpsN++;fpsT+=dt;
-    if(fpsT>=3){const fps=fpsN/fpsT;fpsN=0;fpsT=0;if(fps<40&&qLevel<QL.length-1){setQuality(qLevel+1);fpsWarm=1}}}
+  function watchFps(dt){ // after a short warm-up, check every 1.5 seconds and step down if under 48 fps
+    if(fpsWarm<1.5){fpsWarm+=dt;return}fpsN++;fpsT+=dt;
+    if(fpsT>=1.5){const fps=fpsN/fpsT;fpsN=0;fpsT=0;if(fps<48&&qLevel<QL.length-1){setQuality(qLevel+(fps<25&&qLevel<QL.length-2?2:1));fpsWarm=.5}}}
 
   // taps: your hero = cheer, a star = go do that quest, the floor = walk there
   const cv=renderer.domElement, ray=new T.Raycaster(), floorPlane=new T.Plane(new T.Vector3(0,1,0),0);
@@ -874,7 +875,7 @@ const Hero=(function(){
   const tapMark=new T.Mesh(new T.RingGeometry(.12,.2,24),new T.MeshBasicMaterial({color:0xef6a96,transparent:true,opacity:.8}));tapMark.rotation.x=-Math.PI/2;tapMark.visible=false;scene.add(tapMark);let markT=0;
 
   const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const clock=new T.Clock(),pv=new T.Vector3();
+  const clock=new T.Clock(),pv=new T.Vector3();let frameN=0;
   function loop(){ requestAnimationFrame(loop); const raw=clock.getDelta(),dt=Math.min(raw,.05); if(document.hidden||!hero){fpsWarm=0;return}
     if(raw<.5)watchFps(raw);else fpsWarm=0;
     const t=clock.elapsedTime;
@@ -892,6 +893,7 @@ const Hero=(function(){
     if(tapMark.visible){markT+=dt;tapMark.scale.setScalar(1+markT);tapMark.material.opacity=Math.max(0,.8-markT);if(markT>.8)tapMark.visible=false}
     if(zoomed){const hp=hero.actor.position;camT.set(Math.max(-W+2.5,Math.min(W-2.5,hp.x)),0,Math.max(-D+2,Math.min(D-1.5,hp.z)))}
     placeCam(dt);
+    if((frameN++&1)===0)renderer.shadowMap.needsUpdate=true;
     renderer.render(scene,cam);
     labels.forEach((l,i)=>{pv.copy(l.v).project(cam);const el=labelEls[i];if(el)el.style.transform=`translate(${(pv.x+1)/2*w}px,${(1-pv.y)/2*h}px) translate(-50%,-50%)`});
     others.forEach(o=>{pv.copy(o.w.actor.position);pv.y+=1.35;pv.project(cam);o.tag.style.transform=`translate(${(pv.x+1)/2*w}px,${(1-pv.y)/2*h}px) translate(-50%,-100%)`});
