@@ -1225,7 +1225,7 @@ const focusMin=()=>S.focus&&S.focus.day===dayKey()?Math.floor(S.focus.sec/60):0;
 let waveAt=0;
 function sayMsg(t){$("say").textContent=t}
 
-function lobbyMe(){return {n:myName(),lv:S.lvl,g:MP.code||null,gn:MP.code?(MP.gname||null):null}}
+function lobbyMe(){return MP.code?{n:myName(),lv:S.lvl,g:MP.code,gn:MP.gname||null}:Object.assign(groupMe(),{g:null,gn:null})}
 function groupMe(){const st=Hero.state()||{x:0,z:0,ry:0,pose:null,act:null};const L=S.look;
   return {n:myName(),lv:S.lvl,look:{gender:L.gender,hair:L.hair,hairColor:L.hairColor,skin:L.skin,eye:L.eye,outfit:L.outfit},eq:safeEquip(S.equip),
     x:st.x,z:st.z,ry:st.ry,p:st.pose,a:st.act,f:focusMin(),w:waveAt||null,gn:MP.gname||null}}
@@ -1240,14 +1240,16 @@ function viewPeer(p){const q=p.presence||{};
   return {id:p.peer,me:p.sameTab,name:cleanName(q.n)||"Friend",lv:Math.floor(num(q.lv,1,999,1)),look:safeLook(q.look),equip:safeEquip(q.eq),
     x:num(q.x,-6.8,6.8),z:num(q.z,-6.3,6.3),ry:num(q.ry,-20,20),pose:q.p&&POSES.includes(q.p.t)?{type:q.p.t,h:num(q.p.h,0,1,.3)}:null,
     act:typeof q.a==="string"&&ACT_WORDS[q.a]?q.a:null,f:Math.floor(num(q.f,0,1440)),wave:num(q.w,0,1e14),has:typeof q.x==="number"}}
-function groupPeers(){return MP.peers.filter(p=>p.kind==="viewer").map(viewPeer)}
+// "The house" is your study group's room when you're in one, otherwise the main house everyone online shares.
+function housePeers(){return (MP.group?MP.peers:MP.lobbyPeers.filter(p=>!cleanCode(p.presence&&p.presence.g))).filter(p=>p.kind==="viewer")}
+function groupPeers(){return housePeers().map(viewPeer)}
 
 async function mpStart(){
   let room=null;
   try{ if(window.claude&&window.claude.use) room=await claude.use("room") }catch(e){}
   if(!room){MP.state="off";groupDirty(true);return}
-  MP.lobby=room;MP.state="on";
-  room.onPeers(ch=>{MP.lobbyPeers=ch.peers;groupDirty()},e=>{MP.state="off";MP.lobby=null;MP.group=null;MP.peers=[];Hero.setOthers([]);groupDirty(true)});
+  MP.lobby=room;MP.state="on";MP.joinedAt=Date.now();
+  room.onPeers(ch=>{MP.lobbyPeers=ch.peers;if(!MP.group)onGroupPeers();else groupDirty()},e=>{MP.state="off";MP.lobby=null;MP.group=null;MP.peers=[];Hero.setOthers([]);groupDirty(true)});
   pushPresence();
   let saved=null;try{saved=JSON.parse(localStorage.getItem(GKEY)||"null")}catch(e){}
   if(saved&&saved.code)joinGroup(saved.code,saved.name,true);
@@ -1260,7 +1262,7 @@ async function joinGroup(code,name,quiet){
   MP.joining=true;MP.err="";groupDirty(true);
   try{
     const g=await MP.lobby.join("kd-"+code);
-    MP.group=g;MP.code=code;MP.gname=cleanName(name);MP.joinedAt=Date.now();MP.names={};lastGroup="";
+    MP.group=g;MP.code=code;MP.gname=cleanName(name);MP.joinedAt=Date.now();MP.names={};lastGroup="";Hero.setOthers([]);
     g.onPeers(ch=>{if(MP.group!==g)return;MP.peers=ch.peers;onGroupPeers()},
       e=>{if(MP.group!==g)return;MP.group=null;MP.peers=[];Hero.setOthers([]);MP.err="You were disconnected from the group. Tap Join to try again.";groupDirty(true)});
     try{localStorage.setItem(GKEY,JSON.stringify({code,name:MP.gname}))}catch(e){}
@@ -1269,19 +1271,19 @@ async function joinGroup(code,name,quiet){
   MP.joining=false;pushPresence();groupDirty(true);
 }
 async function leaveGroup(quiet){
-  const g=MP.group;MP.group=null;MP.code="";MP.gname="";MP.peers=[];Hero.setOthers([]);
+  const g=MP.group;MP.group=null;MP.code="";MP.gname="";MP.peers=[];MP.names={};MP.joinedAt=Date.now();Hero.setOthers([]);
   try{localStorage.removeItem(GKEY)}catch(e){}
   if(g)try{await g.leave()}catch(e){}
-  if(!quiet)sayMsg("You left the study group. Back to studying solo.");
-  pushPresence();groupDirty(true);
+  if(!quiet)sayMsg("You left the study group. Back in the main house with everyone online.");
+  pushPresence();onGroupPeers();groupDirty(true);
 }
 function onGroupPeers(){
   const ps=groupPeers();
   Hero.setOthers(ps.filter(p=>!p.me&&p.has));
-  if(!MP.gname){const p=MP.peers.find(p=>cleanName(p.presence&&p.presence.gn));if(p){MP.gname=cleanName(p.presence.gn);try{localStorage.setItem(GKEY,JSON.stringify({code:MP.code,name:MP.gname}))}catch(e){}}}
+  if(MP.group&&!MP.gname){const p=MP.peers.find(p=>cleanName(p.presence&&p.presence.gn));if(p){MP.gname=cleanName(p.presence.gn);try{localStorage.setItem(GKEY,JSON.stringify({code:MP.code,name:MP.gname}))}catch(e){}}}
   const settled=Date.now()-MP.joinedAt>3000,now={};
-  ps.forEach(p=>{if(p.me||!p.has)return;now[p.id]=p.name;if(settled&&!MP.names[p.id])sayMsg(`${p.name} joined your study group!`)});
-  if(settled)Object.keys(MP.names).forEach(id=>{if(!now[id])sayMsg(`${MP.names[id]} left the study group.`)});
+  ps.forEach(p=>{if(p.me||!p.has)return;now[p.id]=p.name;if(settled&&!MP.names[p.id])sayMsg(MP.group?`${p.name} joined your study group!`:`${p.name} came into the house!`)});
+  if(settled)Object.keys(MP.names).forEach(id=>{if(!now[id])sayMsg(MP.group?`${MP.names[id]} left the study group.`:`${MP.names[id]} went home.`)});
   MP.names=now;
   groupDirty();
 }
@@ -1292,8 +1294,8 @@ Hero.onOther(id=>{const p=groupPeers().find(x=>x.id===id);if(!p)return;
 
 let gTimer=null,gLast=0;
 function groupDirty(now){
-  const ps=MP.group?groupPeers():[];
-  $("gChip").hidden=!MP.group;$("gCount").textContent=ps.length||1;
+  const ps=MP.state==="on"?groupPeers():[];
+  $("gChip").hidden=MP.state!=="on";$("gCount").textContent=ps.length||1;$("gChip").title=MP.group?"Your study group":"People in the house now";
   if(tab!=="group")return;
   if(now){clearTimeout(gTimer);gTimer=null;gLast=Date.now();render();return}
   if(gTimer)return;
@@ -1311,24 +1313,27 @@ function openGroups(){
 function drawGroupLists(){
   const ml=$("gpMembers");
   if(ml){const ps=groupPeers().sort((a,b)=>(b.me-a.me)||(b.f-a.f));
-    ml.innerHTML=ps.length?ps.map(memberRow).join(""):`<div class="empty"><b>Just you so far</b>Share the code so friends can join.</div>`;
-    const tot=ps.reduce((a,p)=>a+p.f,0);$("gpTotal").textContent=fmtFocus(tot*60)}
+    ml.innerHTML=ps.length?ps.map(memberRow).join(""):`<div class="empty"><b>Just you so far</b>${MP.group?"Share the code so friends can join.":"Anyone who opens the game shows up here."}</div>`;
+    const tot=ps.reduce((a,p)=>a+p.f,0);if($("gpTotal"))$("gpTotal").textContent=fmtFocus(tot*60)}
   const ol=$("gpOpen");
-  if(ol){const gs=openGroups(),solo=MP.lobbyPeers.filter(p=>p.kind==="viewer"&&!p.sameTab&&!cleanCode(p.presence&&p.presence.g)).length;
+  if(ol){const gs=openGroups(),solo=MP.group?MP.lobbyPeers.filter(p=>p.kind==="viewer"&&!p.sameTab&&!cleanCode(p.presence&&p.presence.g)).length:0;
     ol.innerHTML=(gs.length?gs.map(g=>`<div class="clay gp-row"><div class="gp-main"><b>${esc(g.name||"Study group")}</b><small>${g.n} studying · code ${g.code.toUpperCase()}</small></div>
       <button class="btn3d" style="padding:8px 14px;border-radius:12px" data-mp="join" data-code="${g.code}" data-name="${esc(g.name)}">Join</button></div>`).join("")
       :`<p class="gp-note">No open groups right now. Make one and share the code!</p>`)
       +(solo?`<p class="gp-note">${solo} other ${solo===1?"person is":"people are"} online studying solo.</p>`:"")}
 }
 function renderGroup(v){
-  const privacy=`<p class="gp-note">Your quests stay private. Friends only see your hero, name, level, which room you're in, and your focus time today.</p>`;
+  const privacy=`<p class="gp-note">Your quests stay private. Other players only see your hero, name, level, which room you're in, and your focus time today.</p>`;
   if(MP.state==="loading"){v.innerHTML=`<div class="clay panel"><h3>Study groups</h3><p class="sub">Connecting...</p></div>`;return}
   if(MP.state==="off"){v.innerHTML=`<div class="clay panel"><h3>Study groups</h3>
-    <p class="sub">You're playing solo here. Study groups work when you open Kate's Day from its Claude link while signed in to Claude.</p>${privacy}</div>`;return}
+    <p class="sub">You're playing solo here. To see other players and join study groups, open Kate's Day from its Claude link while signed in to Claude.</p>${privacy}</div>`;return}
   const err=MP.err?`<p class="gp-err">${esc(MP.err)}</p>`:"";
   if(!MP.group){
-    v.innerHTML=`<div class="clay panel"><h3>Study together</h3>
-      <p class="sub">Make a group or join a friend's. Everyone in a group shares one house, so you can walk around the rooms together while you study.</p>${err}
+    v.innerHTML=`<div class="clay panel"><h3>In the house now</h3>
+      <p class="sub">Everyone who has the game open shares this house. Tap a hero to wave hi.</p>
+      <div class="gp-sec" id="gpMembers"></div></div>
+      <div class="clay panel"><h3>Study groups</h3>
+      <p class="sub">Want a quieter house just for friends? Make a group or join one with a code.</p>${err}
       <form class="gp-sec" data-mpform="make"><h4>Make a group</h4><div class="inrow"><input class="txt" id="g-name" maxlength="24" placeholder="Group name, e.g. Exam crew"><button class="btn3d" type="submit" ${MP.joining?"disabled":""}>Make</button></div></form>
       <form class="gp-sec" data-mpform="join"><h4>Join with a code</h4><div class="inrow"><input class="txt" id="g-code" maxlength="8" placeholder="Code" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:.15em"><button class="btn3d" type="submit" ${MP.joining?"disabled":""}>Join</button></div></form>
       ${privacy}</div>
