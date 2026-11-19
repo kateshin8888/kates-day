@@ -18,9 +18,14 @@ Everyone who has the game open shares one main house, so you see other players' 
 
 Your quests and planner stay private. Friends only see your hero, name, level, which room you're in, and your focus time today.
 
-Multiplayer runs on Claude's built-in live rooms, so it works when the game is opened from its Claude link while signed in to Claude. There's no server or account to set up. To play with friends, share the game from the Share menu (invite them by email), then send them your group code. Opened as a plain file or from GitHub Pages, the game still works, just solo.
+Multiplayer works in two places, with no server or account to set up:
+
+- **The website (GitHub Pages):** players connect to each other directly (peer to peer) using [Trystero](https://github.com/dmotz/trystero), which finds other players through free public Nostr relays. Just share the website link.
+- **The Claude link:** uses Claude's built-in live rooms. Share the game from the Share menu (invite friends by email).
+
+Players on the website and players on the Claude link are in separate houses, so pick one place for your friends to play. Opened as a plain file on your computer, the game works solo. On some strict school or office networks, direct connections can be blocked, and the game then plays solo there.
 
 ## Notes
 
-- Everything is in one file, `index.html`. It loads three.js r128 from cdnjs and fonts from Google Fonts.
+- The game is one file, `index.html`. It loads three.js r128 from cdnjs and fonts from Google Fonts. `trystero.min.js` is a bundled copy of Trystero 0.26.0 (MIT license), loaded only on the website.
 - Progress is saved in your browser (localStorage), so it stays on the device and browser you play on.
